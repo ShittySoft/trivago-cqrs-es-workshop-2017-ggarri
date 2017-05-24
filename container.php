@@ -204,9 +204,16 @@ return new ServiceManager([
 
             return function (Command\CheckInUser $command) use ($buildings) {
                 $building = $buildings->get($command->buildingId());
-
                 $building->checkInUser($command->username());
+                $buildings->add($building);
+            };
+        },
+        Command\CheckOutUser::class => function (ContainerInterface $container) : callable {
+            $buildings = $container->get(BuildingRepositoryInterface::class);
 
+            return function (Command\CheckOutUser $command) use ($buildings) {
+                $building = $buildings->get($command->buildingId());
+                $building->checkOutUser($command->username());
                 $buildings->add($building);
             };
         },

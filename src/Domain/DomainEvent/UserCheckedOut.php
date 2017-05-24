@@ -7,7 +7,7 @@ namespace Building\Domain\DomainEvent;
 use Prooph\EventSourcing\AggregateChanged;
 use Rhumsaa\Uuid\Uuid;
 
-final class UserCheckedIn extends AggregateChanged
+final class UserCheckedOut extends AggregateChanged
 {
     public static function fromBuildingIdAndUsername(
         Uuid $buildingId,
@@ -21,8 +21,8 @@ final class UserCheckedIn extends AggregateChanged
         return $this->payload['username'];
     }
 
-    public function checkInAt() : \DateTime
+    public function checkOutAt() : \DateTime
     {
-        return $this->payload['checkInAt'];
+        return $this->payload['checkOutAt'];
     }
 }
