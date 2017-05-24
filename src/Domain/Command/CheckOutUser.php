@@ -17,17 +17,12 @@ final class CheckOutUser extends Command
      * @var string
      */
     private $username;
-    /**
-     * @var \DateTime
-     */
-    private $checkOutAt;
 
     private function __construct(Uuid $buildingId, string $username)
     {
         $this->init();
         $this->buildingId = $buildingId;
         $this->username = $username;
-        $this->checkOutAt = new \DateTime();
     }
 
     public static function fromBuildingIdAndUsername(Uuid $buildingId, string $username) : self
@@ -53,7 +48,6 @@ final class CheckOutUser extends Command
         return [
             'username' => $this->username,
             'buildingId' => $this->buildingId->toString(),
-            'checkOutAt' => $this->checkOutAt
         ];
     }
 
@@ -63,7 +57,6 @@ final class CheckOutUser extends Command
     protected function setPayload(array $payload)
     {
         $this->username = $payload['username'];
-        $this->checkOutAt = $payload['checkOutAt'];
         $this->buildingId = Uuid::fromString($payload['buildingId']);
     }
 }

@@ -25,6 +25,7 @@ use Prooph\Common\Event\ActionEventListenerAggregate;
 use Prooph\Common\Event\ProophActionEventEmitter;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
+use Prooph\EventSourcing\AggregateChanged;
 use Prooph\EventSourcing\EventStoreIntegration\AggregateTranslator;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
 use Prooph\EventStore\Adapter\Doctrine\Schema\EventStoreSchema;
@@ -189,7 +190,46 @@ return new ServiceManager([
 
             $commandBus->utilize($transactionManager);
 
-            return $commandBus;
+            return new class ($commandBus) extends CommandBus
+            {
+                /**
+                 * @var CommandBus
+                 */
+                private $next;
+
+                public function __construct(CommandBus $next)
+                {
+                    $this->next = $next;
+                }
+
+                public function dispatch($command)
+                {
+                    // advanced logging infrastructure:
+                    var_dump($command);
+
+                    $this->next->dispatch($command);
+                }
+            };
+        },
+
+        'async-command-bus' => function (ContainerInterface $container) {
+            return new class ($container->get(MessageProducer::class)) extends CommandBus
+            {
+                /**
+                 * @var MessageProducer
+                 */
+                private $messageProducer;
+
+                public function __construct(MessageProducer $messageProducer)
+                {
+                    $this->messageProducer = $messageProducer;
+                }
+
+                public function dispatch($command)
+                {
+                    $this->messageProducer->__invoke($command);
+                }
+            };
         },
 
         // ignore this - this is async stuff
@@ -259,7 +299,7 @@ return new ServiceManager([
             );
         },
         DomainEvent\CheckInOutAnomalyDetected::class . '-listeners' => function (ContainerInterface $container) : array {
-            $commandBus = $container->get(CommandBus::class);
+            $commandBus = $container->get('async-command-bus');
             return [
                 function(DomainEvent\CheckInOutAnomalyDetected $e) use ($commandBus) {
                     $commandBus->dispatch(Command\NotifyAnomaly::fromBuildingIdAndUsername(

@@ -29,7 +29,6 @@ final class CheckInUser extends Command
 
         $this->buildingId = $buildingId;
         $this->username = $username;
-        $this->checkInAt = new \DateTime();
     }
 
     public static function fromBuildingIdAndUsername(Uuid $buildingId, string $username) : self
@@ -54,7 +53,6 @@ final class CheckInUser extends Command
     {
         return [
             'username' => $this->username,
-            'checkInAt' => $this->checkInAt,
             'buildingId' => $this->buildingId->toString(),
         ];
     }
@@ -65,7 +63,6 @@ final class CheckInUser extends Command
     protected function setPayload(array $payload)
     {
         $this->username = $payload['username'];
-        $this->checkInAt = $payload['checkInAt'];
         $this->buildingId = Uuid::fromString($payload['buildingId']);
     }
 }
