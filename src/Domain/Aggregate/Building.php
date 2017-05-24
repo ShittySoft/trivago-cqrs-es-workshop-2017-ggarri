@@ -104,4 +104,9 @@ final class Building extends AggregateRoot
     {
         return $this->aggregateId();
     }
+
+    public function usersInBuilding(): array
+    {
+        return $this->usersInBuilding;
+    }
 }

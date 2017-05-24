@@ -32,6 +32,7 @@ use Prooph\EventStore\Adapter\PayloadSerializer\JsonPayloadSerializer;
 use Prooph\EventStore\Aggregate\AggregateRepository;
 use Prooph\EventStore\Aggregate\AggregateType;
 use Prooph\EventStore\EventStore;
+use Prooph\EventStore\Stream\StreamName;
 use Prooph\EventStoreBusBridge\EventPublisher;
 use Prooph\EventStoreBusBridge\TransactionManager;
 use Prooph\ServiceBus\Async\MessageProducer;
@@ -45,6 +46,27 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Zend\ServiceManager\ServiceManager;
 
 require_once __DIR__ . '/vendor/autoload.php';
+
+function updateBuildingStatus(EventStore $eventStore, $buildingId)
+{
+    $history = $eventStore->loadEventsByMetadataFrom(
+        new StreamName('event_stream'),
+        [
+            'aggregate_id' => $buildingId
+        ]
+    );
+
+    $users = [];
+    foreach($history as $event) {
+        if($event instanceof DomainEvent\UserCheckedIn){
+            $users[$event->username()] = true;
+        }
+        if($event instanceof DomainEvent\UserCheckedOut) {
+            unset($users[$event->username()]);
+        }
+    }
+    file_put_contents(__DIR__ . '/data/building-'.$buildingId.'.json', json_encode(array_keys($users)));
+}
 
 return new ServiceManager([
     'factories' => [
@@ -220,10 +242,10 @@ return new ServiceManager([
         },
         Command\NotifyAnomaly::class => function (ContainerInterface $container) : callable {
             return function (Command\NotifyAnomaly $command) {
-                error_log(sprintf('Error in %s for %s type %s',
-                    $command->buildingId()->toString(),
+                error_log(sprintf('Error: Anomaly of user %s trying to %s twice in building %s',
                     $command->username(),
-                    $command->type()
+                    $command->type(),
+                    $command->buildingId()->toString()
                 ));
             };
         },
@@ -245,6 +267,22 @@ return new ServiceManager([
                         $e->username(),
                         $e->type()
                     ));
+                }
+            ];
+        },
+        DomainEvent\UserCheckedIn::class . '-projectors' => function (ContainerInterface $container) : array {
+            $eventStore = $container->get(EventStore::class);
+            return [
+                function(DomainEvent\UserCheckedIn $e) use ($eventStore) {
+                    updateBuildingStatus($eventStore, $e->aggregateId());
+                }
+            ];
+        },
+        DomainEvent\UserCheckedOut::class . '-projectors' => function (ContainerInterface $container) : array {
+            $eventStore = $container->get(EventStore::class);
+            return [
+                function(DomainEvent\UserCheckedOut $e) use ($eventStore) {
+                    updateBuildingStatus($eventStore, $e->aggregateId());
                 }
             ];
         },

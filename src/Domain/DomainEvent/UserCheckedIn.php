@@ -25,4 +25,9 @@ final class UserCheckedIn extends AggregateChanged
     {
         return $this->payload['checkInAt'];
     }
+
+    public function buildingId() : Uuid
+    {
+        return Uuid::fromString($this->aggregateId());
+    }
 }
