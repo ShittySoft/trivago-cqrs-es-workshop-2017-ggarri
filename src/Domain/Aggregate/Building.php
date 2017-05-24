@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Building\Domain\Aggregate;
 
+use Building\Domain\DomainEvent\CheckInOutAnomalyDetected;
 use Building\Domain\DomainEvent\NewBuildingWasRegistered;
 use Building\Domain\DomainEvent\UserCheckedIn;
 use Building\Domain\DomainEvent\UserCheckedOut;
@@ -40,25 +41,31 @@ final class Building extends AggregateRoot
     public function checkInUser(string $username)
     {
         if(array_key_exists($username, $this->usersInBuilding)) {
-            throw new Exception(sprintf('Username %s is already in building', $username));
+            $this->recordThat(CheckInOutAnomalyDetected::generateCheckInError(
+                $this->uuid,
+                $username
+            ));
+        } else {
+            $this->recordThat(UserCheckedIn::fromBuildingIdAndUsername(
+                $this->uuid,
+                $username
+            ));
         }
-
-        $this->recordThat(UserCheckedIn::fromBuildingIdAndUsername(
-            $this->uuid,
-            $username
-        ));
     }
 
     public function checkOutUser(string $username)
     {
         if(!array_key_exists($username, $this->usersInBuilding)) {
-            throw new Exception(sprintf('Username %s is NOT already in building', $username));
+            $this->recordThat(CheckInOutAnomalyDetected::generateCheckOutError(
+                $this->uuid,
+                $username
+            ));
+        } else {
+            $this->recordThat(UserCheckedOut::fromBuildingIdAndUsername(
+                $this->uuid,
+                $username
+            ));
         }
-
-        $this->recordThat(UserCheckedOut::fromBuildingIdAndUsername(
-            $this->uuid,
-            $username
-        ));
     }
 
     public function whenNewBuildingWasRegistered(NewBuildingWasRegistered $event)
@@ -75,6 +82,11 @@ final class Building extends AggregateRoot
     public function whenUserCheckedOut(UserCheckedOut $event)
     {
         unset($this->usersInBuilding[$event->username()]);
+    }
+
+    public function whenCheckInOutAnomalyDetected(CheckInOutAnomalyDetected $event)
+    {
+        // Do nothing
     }
 
     /**

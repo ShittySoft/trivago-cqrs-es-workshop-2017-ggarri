@@ -11,6 +11,7 @@ use Bernard\QueueFactory;
 use Bernard\QueueFactory\PersistentFactory;
 use Building\Domain\Aggregate\Building;
 use Building\Domain\Command;
+use Building\Domain\DomainEvent;
 use Building\Domain\Repository\BuildingRepositoryInterface;
 use Building\Infrastructure\Repository\BuildingRepository;
 use Doctrine\DBAL\Connection;
@@ -217,6 +218,15 @@ return new ServiceManager([
                 $buildings->add($building);
             };
         },
+        Command\NotifyAnomaly::class => function (ContainerInterface $container) : callable {
+            return function (Command\NotifyAnomaly $command) {
+                error_log(sprintf('Error in %s for %s type %s',
+                    $command->buildingId()->toString(),
+                    $command->username(),
+                    $command->type()
+                ));
+            };
+        },
         BuildingRepositoryInterface::class => function (ContainerInterface $container) : BuildingRepositoryInterface {
             return new BuildingRepository(
                 new AggregateRepository(
@@ -225,6 +235,18 @@ return new ServiceManager([
                     new AggregateTranslator()
                 )
             );
+        },
+        DomainEvent\CheckInOutAnomalyDetected::class . '-listeners' => function (ContainerInterface $container) : array {
+            $commandBus = $container->get(CommandBus::class);
+            return [
+                function(DomainEvent\CheckInOutAnomalyDetected $e) use ($commandBus) {
+                    $commandBus->dispatch(Command\NotifyAnomaly::fromBuildingIdAndUsername(
+                        $e->buildingId(),
+                        $e->username(),
+                        $e->type()
+                    ));
+                }
+            ];
         },
     ],
 ]);
